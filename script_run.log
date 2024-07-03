@@ -1,0 +1,96 @@
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
+Traceback (most recent call last):
+  File "/home/ubuntu/right-ship-server/app.py", line 1, in <module>
+    from app import create_app
+  File "/home/ubuntu/right-ship-server/app/__init__.py", line 1, in <module>
+    from flask import Flask
+ModuleNotFoundError: No module named 'flask'
