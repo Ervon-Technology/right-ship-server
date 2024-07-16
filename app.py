@@ -334,7 +334,12 @@ def attributes_operations(function):
     from companyProfile.base import attributeroutes
     data = request.get_json()
     return attributeroutes(data,function)
-        
+    
+@app.route('/company/application/<function>', methods=['POST'])
+def application_operations(function):
+    from companyProfile.base import applicationRoutes
+    data = request.get_json()
+    return applicationRoutes(data,function)
 
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')

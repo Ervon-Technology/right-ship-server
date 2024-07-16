@@ -229,15 +229,27 @@ def attributeroutes(payload,function):
             payload["created_date"] = created_date
             payload["company_id"] = company_id
 
-            result = mongo_db.get_collection('company_attributes').insert_one(payload)
-            payload['attributes_id'] = str(result.inserted_id)
-            if '_id' in list(payload):
+            # Perform upsert operation to avoid duplicates
+            result = mongo_db.get_collection('company_attributes').update_one(
+                {"company_id": company_id},
+                {"$set": payload},
+                upsert=True
+            )
+
+            if result.upserted_id:
+                payload['attributes_id'] = str(result.upserted_id)
+            else:
+                existing_record = mongo_db.get_collection('company_attributes').find_one({"company_id": company_id})
+                payload['attributes_id'] = str(existing_record['_id'])
+
+            if '_id' in payload:
                 del payload['_id']
-            return jsonify({"code": 200, "msg": "Attributes created successfully", "attributes": payload}), 200
+
+            return jsonify({"code": 200, "msg": "Attributes created/updated successfully", "attributes": payload}), 200
 
         except Exception as e:
             return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
-
+        
     elif function == 'edit':
         try:
             attributes_id = payload.get('attributes_id')
@@ -290,3 +302,111 @@ def attributeroutes(payload,function):
         return jsonify({"error": "Invalid function"}), 400
     return jsonify({"code": 404, "msg": "Function not found"}), 404
 
+
+def applicationRoutes(payload,function):
+    if function == 'create':
+        try:
+            company_id = payload.get('company_id')
+            ship_types = payload.get('ship_types')
+            ranks = payload.get('ranks')
+            benefits = payload.get('benefits')
+            description = payload.get('description')
+            
+            if not company_id or not ship_types or not ranks or not benefits or not description:
+                return jsonify({"code": 400, "msg": "company_id, ship_types, ranks, benefits, and description are required"}), 400
+
+            created_date = datetime.utcnow()
+            payload["created_date"] = created_date
+            payload["company_id"] = company_id
+
+            # Check for existing application with the same details
+            existing_application = mongo_db.get_collection('job_application').find_one({
+                "company_id": company_id,
+                "ship_types": ship_types,
+                "ranks": ranks,
+                "benefits": benefits,
+                "description": description
+            })
+
+            if existing_application:
+                # Update the existing application
+                result = mongo_db.get_collection('job_application').update_one(
+                    {"_id": existing_application["_id"]},
+                    {"$set": payload}
+                )
+                payload['application_id'] = str(existing_application["_id"])
+            else:
+                # Insert new application
+                result = mongo_db.get_collection('job_application').insert_one(payload)
+                payload['application_id'] = str(result.inserted_id)
+                
+            if '_id' in list(payload):
+                del payload['_id']
+
+            return jsonify({"code": 200, "msg": "Application created/updated successfully", "application": payload}), 200
+
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'edit':
+        try:
+            application_id = payload.get('application_id')
+            if not application_id:
+                return jsonify({"error": "application_id is required"}), 400
+
+            update_data = {key: value for key, value in payload.items() if key != 'application_id'}
+            update_data["updated_date"] = datetime.utcnow()
+            
+            result = mongo_db.get_collection('job_application').update_one(
+                {"_id": ObjectId(application_id)},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count == 0:
+                return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Application updated successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'delete':
+        try:
+            application_id = payload.get('application_id')
+            if not application_id:
+                return jsonify({"error": "application_id is required"}), 400
+            
+            result = mongo_db.get_collection('job_application').delete_one({"_id": ObjectId(application_id)})
+            if result.deleted_count == 0:
+                return jsonify({"code": 202, "msg": "No application found for deletion"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Application deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function.lower() == 'get':
+        try:
+            company_id = payload.get('company_id')
+            application_id = payload.get('application_id', '')
+            
+            if not company_id:
+                return jsonify({"code": 400, "msg": "company_id is required"}), 400
+
+            if application_id:
+                application = mongo_db.get_collection('job_application').find_one({"_id": ObjectId(application_id), "company_id": company_id})
+                if not application:
+                    return jsonify({"code": 404, "msg": "Application not found"}), 404
+                application['_id'] = str(application['_id'])
+                application['application_id'] = str(application['_id'])
+                return jsonify({"code": 200, "application": application}), 200
+            else:
+                applications = list(mongo_db.get_collection('job_application').find({"company_id": company_id}))
+                for app in applications:
+                    app['_id'] = str(app['_id'])
+                    app['application_id'] = str(app['_id'])
+                return jsonify({"code": 200, "applications": applications}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    else:
+        return jsonify({"error": "Invalid function"}), 400
+    return jsonify({"code": 404, "msg": "Function not found"}), 404
