@@ -214,3 +214,79 @@ def teamroutes(payload,function):
         return jsonify({"error": "Invalid function"}), 400
 
     return jsonify({"code": 404, "msg": "Function not found"}), 404
+
+
+def attributeroutes(payload,function):
+    if function == 'create':
+        try:
+            ship_types = payload.get('ship_types', [])
+            ranks = payload.get('ranks', [])
+            company_id = payload.get('company_id')
+            if not company_id:
+                return jsonify({"code": 400, "msg": "company_id is required"}), 400
+
+            created_date = datetime.utcnow()
+            payload["created_date"] = created_date
+            payload["company_id"] = company_id
+
+            result = mongo_db.get_collection('company_attributes').insert_one(payload)
+            payload['attributes_id'] = str(result.inserted_id)
+            if '_id' in list(payload):
+                del payload['_id']
+            return jsonify({"code": 200, "msg": "Attributes created successfully", "attributes": payload}), 200
+
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'edit':
+        try:
+            attributes_id = payload.get('attributes_id')
+            if not attributes_id:
+                return jsonify({"error": "attributes_id is required"}), 400
+
+            update_data = {key: value for key, value in payload.items() if key != 'attributes_id'}
+            update_data["updated_date"] = datetime.utcnow()
+            
+            result = mongo_db.get_collection('company_attributes').update_one(
+                {"_id": ObjectId(attributes_id)},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count == 0:
+                return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Attributes updated successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'delete':
+        try:
+            attributes_id = payload.get('attributes_id')
+            if not attributes_id:
+                return jsonify({"error": "attributes_id is required"}), 400
+            
+            result = mongo_db.get_collection('company_attributes').delete_one({"_id": ObjectId(attributes_id)})
+            if result.deleted_count == 0:
+                return jsonify({"code": 202, "msg": "No attributes found for deletion"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Attributes deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function.lower() == 'get':
+        try:
+            company_id = payload.get('company_id')
+            if not company_id:
+                return jsonify({"code": 400, "msg": "company_id is required"}), 400
+            
+            attributes = list(mongo_db.get_collection('company_attributes').find({"company_id": company_id}))
+            for attr in attributes:
+                attr['_id'] = str(attr['_id'])
+            return jsonify({"code": 200, "attributes": attributes}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    else:
+        return jsonify({"error": "Invalid function"}), 400
+    return jsonify({"code": 404, "msg": "Function not found"}), 404
+

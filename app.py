@@ -328,6 +328,13 @@ def team_operations(function):
     from companyProfile.base import teamroutes
     data = request.get_json()
     return teamroutes(data,function)
-    
+
+@app.route('/company/attributes/<function>', methods=['POST'])
+def attributes_operations(function):
+    from companyProfile.base import attributeroutes
+    data = request.get_json()
+    return attributeroutes(data,function)
+        
+
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')
