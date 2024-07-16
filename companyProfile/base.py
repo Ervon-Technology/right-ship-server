@@ -6,6 +6,7 @@ from bson import ObjectId, json_util
 
 
 def routes(payload, function):
+    
     if function.lower() == 'details':
         company_id = payload.get('company_id', '')
 
@@ -17,14 +18,14 @@ def routes(payload, function):
         
         # Use upsert to either update the existing document or insert a new one
         result = mongo_db.get_collection('companies').update_one(
-            {"_id": ObjectId(company_id)} if company_id else {"company_email": payload.get('company_email'), "company_url": payload.get('company_url')},
+            {"_id": ObjectId(company_id)} if company_id else {"mobile_no": payload.get('mobile_no')},
             {"$set": payload},
             upsert=True
         )
         
         if result.upserted_id:
             company_id = str(result.upserted_id)
-            return jsonify({"code": 201, "msg": "Company data created successfully", "company_id": company_id}), 201
+            return jsonify({"code": 200, "msg": "Company data created successfully", "company_id": company_id}), 200
         elif result.modified_count > 0:
             return jsonify({"code": 200, "msg": "Company data updated successfully"}), 200
         else:
@@ -79,9 +80,11 @@ def routes(payload, function):
             # Create or find company admin based on mobile number
             admin_data = {
                 "mobile_no": mobile_no,
+                "role":"admin",
+                "status":"active",
                 "created_date": datetime.utcnow()
             }
-            admin_result = mongo_db.get_collection('company_admins').find_one_and_update(
+            admin_result = mongo_db.get_collection('company_team').find_one_and_update(
                 {"mobile_no": mobile_no},
                 {"$setOnInsert": admin_data},
                 upsert=True,
@@ -107,10 +110,107 @@ def routes(payload, function):
                 result = mongo_db.get_collection('companies').insert_one(company_data)
                 company_data['company_id'] = str(result.inserted_id)
                 
-                return jsonify({"code": 201, "msg": "Company and admin data created successfully", "company_id": str(result.inserted_id)}), 201
+                return jsonify({"code": 200, "msg": "Company and admin data created successfully", "company_id": str(result.inserted_id)}), 200
         except Exception as e:
             return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
 
+    
+    else:
+        return jsonify({"error": "Invalid function"}), 400
     return jsonify({"code": 404, "msg": "Function not found"}), 404
 
+def teamroutes(payload,function):
+    if function == 'add':
+        try:
+            team_id = payload.get('team_id', '')
+            company_id = payload.get('company_id')
+            mobile_no = payload.get('mobile_no')
+            if not mobile_no or not company_id:
+                return jsonify({"code": 400, "msg": "Mobile no and company_id is required"}), 400
+            
+            created_date = datetime.utcnow()
+            payload["created_date"] = created_date
+            payload["company_id"] = company_id
 
+            # Check for existing team member with the same mobile number
+            existing_member = mongo_db.get_collection('company_team').find_one({"mobile_no": mobile_no,"company_id":company_id})
+
+            if existing_member:
+                # Update the existing member
+                result = mongo_db.get_collection('company_team').update_one(
+                    {"_id": existing_member["_id"]},
+                    {"$set": payload}
+                )
+                payload['team_id'] = str(existing_member["_id"])
+            else:
+                # Insert new team member
+                result = mongo_db.get_collection('company_team').insert_one(payload)
+                payload['team_id'] = str(result.inserted_id)
+            if '_id' in list(payload):
+                del payload['_id']
+            return jsonify({"code": 200, "msg": "Team member added/updated successfully", "team_member": payload}), 200
+
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'edit':
+        try:
+            team_id = payload.get('team_id')
+            if not team_id:
+                return jsonify({"error": "team_id is required"}), 400
+
+            update_data = {key: value for key, value in payload.items() if key != 'team_id'}
+            update_data["updated_date"] = datetime.utcnow()
+            
+            result = mongo_db.get_collection('company_team').update_one(
+                {"_id": ObjectId(team_id)},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count == 0:
+                return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Team member updated successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+    elif function == 'delete':
+        try:
+            team_id = payload.get('team_id')
+            if not team_id:
+                return jsonify({"error": "team_id is required"}), 400
+            
+            result = mongo_db.get_collection('company_team').delete_one({"_id": ObjectId(team_id)})
+            if result.deleted_count == 0:
+                return jsonify({"code": 202, "msg": "No team member found for deletion"}), 202
+            else:
+                return jsonify({"code": 200, "msg": "Team member deleted successfully"}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+
+   
+    
+    elif function.lower() == 'get':
+        try:
+            team_id = payload.get('team_id', '')
+            company_id = payload.get('company_id')
+            if not company_id:
+                return jsonify({"code": 400, "msg": "company_id is required"}), 400
+            
+            if team_id:
+                team_member = mongo_db.get_collection('company_team').find_one({"_id": ObjectId(team_id), "company_id": company_id})
+                if not team_member:
+                    return jsonify({"code": 404, "msg": "Team member not found"}), 404
+                team_member['_id'] = str(team_member['_id'])
+                return jsonify({"code": 200, "team_member": team_member}), 200
+            else:
+                team_members = list(mongo_db.get_collection('company_team').find({"company_id": company_id}))
+                for member in team_members:
+                    member['_id'] = str(member['_id'])
+                return jsonify({"code": 200, "team_members": team_members}), 200
+        except Exception as e:
+            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+    else:
+        return jsonify({"error": "Invalid function"}), 400
+
+    return jsonify({"code": 404, "msg": "Function not found"}), 404

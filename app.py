@@ -323,6 +323,11 @@ def employersFn(function):
     data = request.get_json()
     return routes(data,function)
     
-
+@app.route('/company/team/<function>', methods=['POST'])
+def team_operations(function):
+    from companyProfile.base import teamroutes
+    data = request.get_json()
+    return teamroutes(data,function)
+    
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')
