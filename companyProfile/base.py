@@ -389,7 +389,12 @@ def applicationRoutes(payload,function):
             application_id = payload.get('application_id', '')
             
             if not company_id:
-                return jsonify({"code": 400, "msg": "company_id is required"}), 400
+                applications = list(mongo_db.get_collection('job_application').find({}))
+                for app in applications:
+                    app['_id'] = str(app['_id'])
+                    app['application_id'] = str(app['_id'])
+                return jsonify({"code": 200, "applications": applications}), 200
+                
 
             if application_id:
                 application = mongo_db.get_collection('job_application').find_one({"_id": ObjectId(application_id), "company_id": company_id})
