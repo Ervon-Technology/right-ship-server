@@ -5,6 +5,7 @@ from bson import ObjectId, json_util
 from flask_cors import CORS
 import os
 from datetime import datetime
+from datetime import  timezone
 app = Flask(__name__,static_folder='static')
 
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -13,6 +14,106 @@ app.secret_key =  os.environ.get('SECRET_KEY')
 @app.route('/')
 def default():
     return "Server running"
+
+@app.route('/otp/<function>', methods=['POST'])
+def otpFn(function):
+    from sendOtp import send_otp, verify_otp
+    if function.lower() == 'send_otp':
+        data = request.get_json()
+        phone_number = data.get('mobile_no', '')
+        if not phone_number:
+            return {"code": 400, "error": "mobile_no key not defined"}
+        
+        phone_number = str(phone_number)
+        if len(phone_number) == 10:
+            phone_number = f"91{phone_number}"  # for India auto input
+        
+        # Send OTP
+        response = send_otp(phone_number)
+        if response.get('code') != 200:
+            return response
+
+        order_id = response.get('order_id')
+        if not order_id:
+            return {"code": 500, "error": "Failed to send OTP"}
+
+        # Store the order_id and phone number temporarily
+        mongo_db.get_collection('otp_sessions').insert_one({
+            "mobile_no": phone_number,
+            "order_id": order_id,
+            "created_date": datetime.now(timezone.utc)
+        })
+
+        return {"code": 200, "msg": "OTP sent successfully"}
+
+    elif function.lower() == 'verify_otp':
+        data = request.get_json()
+        phone_number = data.get('mobile_no', '')
+        otp = data.get('otp', '')
+        if not phone_number or not otp:
+            return {"code": 400, "error": "mobile_no and otp keys are required"}
+        
+        phone_number = str(phone_number)
+        if len(phone_number) == 10:
+            phone_number = f"91{phone_number}"  # for India auto input
+        
+        # Retrieve the order_id from the temporary storage
+        session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number}, sort=[("created_date", -1)])
+        if not session:
+            return {"code": 404, "error": "No OTP session found for this number"}
+
+        order_id = session.get('order_id')
+        
+        # Verify OTP
+        response = verify_otp(phone_number, otp, order_id)
+        if response.get('code') != 200:
+            return response
+        
+        # Mark OTP session as verified
+        mongo_db.get_collection('otp_sessions').update_one(
+            {"mobile_no": phone_number},
+            {"$set": {"verified": True}}
+        )
+
+        return {"code": 200, "msg": "OTP verified successfully"}
+    
+    return {'code': 404, "msg": "Method not defined"}
+
+@app.route('/admin/<function>', methods=['POST'])
+def adminFn(function):
+    if function.lower() == 'register':
+        data = request.get_json()
+        phone_number = data.get('mobile_no', '')
+        if not phone_number:
+            return {"code": 400, "error": "mobile_no key not defined"}
+        
+        phone_number = str(phone_number)
+        if len(phone_number) == 10:
+            phone_number = f"91{phone_number}"  # for India auto input
+        
+        # Check if the OTP session is verified
+        session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number, "verified": True}, sort=[("created_date", -1)])
+        if not session:
+            return {"code": 400, "error": "OTP not verified"}
+        
+        team_member = {
+            "role": "super_admin",
+            "status": "active",
+            "mobile_no": phone_number,
+            "joined_date": datetime.now(timezone.utc).strftime('%d %b, %Y'),
+            "created_date": datetime.now(timezone.utc)
+        }
+
+        # Check if the user already exists
+        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": phone_number}, {"_id": 0, "mobile_no": 1})
+        if check_if_exists is None:
+            mongo_db.get_collection('team').insert_one(team_member)
+            del team_member['_id']
+            return jsonify({"code": 200, "msg": "Admin created successfully", "team": team_member})
+        else:
+            return {"code": 300, "msg": f"This user ({phone_number}) is already registered as an admin"}
+
+    return {'code': 404, "msg": "Method not defined"}
 
 #for admin to create team members or to add/update/edit permissions
 @app.route('/team/<function>', methods=['POST'])
@@ -23,7 +124,7 @@ def teamMembers(function):
             data = request.get_json()
             name = data.get('name')
             role = data.get('role', 'Employee')
-            status = data.get('status', 'Active')
+            status = data.get('status', 'active')
             joined_date = data.get('joined_date', datetime.utcnow().strftime('%d %b, %Y'))
             description = data.get('description')
             permissions = data.get('permissions', [])
