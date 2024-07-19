@@ -14,7 +14,7 @@ def send_otp(phone_number):
     payload = json.dumps({
         "phoneNumber": phone_number,
         "otpLength": 6,
-        "channel": "WHATSAPP",  # Can be SMS, WHATSAPP, or EMAIL
+        "channel": "SMS",  # Can be SMS, WHATSAPP, or EMAIL
         "expiry": 600
     })
     try:
@@ -48,7 +48,7 @@ def verify_otp(phone_number, otp, order_id):
     if response.status == 200 and result.get('isOTPVerified') == True:
         return {"code": 200, "msg": "OTP verified successfully"}
     else:
-        if result["message"] ==  "The OTP for this order has already verified!":
+        if "message" in list(result) and  result["message"] ==  "The OTP for this order has already verified!":
             result['code'] = 201 # if already verified
         else:
             result['code'] =400

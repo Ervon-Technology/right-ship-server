@@ -113,6 +113,31 @@ def adminFn(function):
         else:
             return {"code": 300, "msg": f"This user ({phone_number}) is already registered as an admin"}
 
+    if function.lower() == 'login':
+        data = request.get_json()
+        phone_number = data.get('mobile_no', '')
+        if not phone_number:
+            return {"code": 400, "error": "mobile_no key not defined"}
+        
+        phone_number = str(phone_number)
+        if len(phone_number) == 10:
+            phone_number = f"91{phone_number}"  # for India auto input
+        
+        # Check if the OTP session is verified
+        session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number, "verified": True}, sort=[("created_date", -1)])
+        if not session:
+            return {"code": 400, "error": "OTP not verified"}
+        
+        
+
+        # Check if the user already exists
+        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": phone_number}, {"_id": 0})
+        if check_if_exists is None:
+            return jsonify({"code": 500, "msg": "Number not registered"})
+        else:
+            
+            return {"code": 200, "msg": f"Admin with ({phone_number}) login successfull ","data":check_if_exists}
+
     return {'code': 404, "msg": "Method not defined"}
 
 #for admin to create team members or to add/update/edit permissions
@@ -127,30 +152,18 @@ def teamMembers(function):
             status = data.get('status', 'active')
             joined_date = data.get('joined_date', datetime.utcnow().strftime('%d %b, %Y'))
             description = data.get('description')
-            permissions = data.get('permissions', [])
-            permission_ids = []
+            
 
             if not name or not description:
                 return jsonify({"code": 400, "error": "Name and description are required"}), 400
 
-            if permissions:
-                permissions_data = list(mongo_db.get_collection('permissions').find({"name": {"$in": permissions}}, {"_id": 1, "name": 1}))
-                permissions_names = [perm['name'] for perm in permissions_data]
-                permission_ids = [str(i['_id']) for i in permissions_data]
-
-                # Find permissions that are not in the database
-                perm_not_found = [perm for perm in permissions if perm not in permissions_names]
-                if perm_not_found:
-                    return jsonify({"code": 400, "msg": "Permission(s) not found: " + str(perm_not_found)}), 400
-
+           
             team_member = {
                 "name": name,
                 "role": role,
                 "status": status,
                 "joined_date": joined_date,
                 "description": description,
-                "permissions": permissions,
-                "permission_ids": permission_ids,
                 "created_date": datetime.utcnow()
             }
 
@@ -200,9 +213,7 @@ def teamMembers(function):
             for i in result:
                 i['user_id'] = str(i['_id'])
                 i['_id'] = str(i['_id'])
-                # Fetch and update latest permission names based on ids
-                permission_names = list(mongo_db.get_collection('permissions').find({"_id": {"$in": [ObjectId(pid) for pid in i['permission_ids']]}}, {"_id": 0, "name": 1}))
-                i['permissions'] = [p['name'] for p in permission_names]
+               
                 
             return {'code': 200, 'data': result, 'msg': "Successfully fetched team data"}
         except Exception as e:
@@ -210,76 +221,7 @@ def teamMembers(function):
 
     return {"code": 404, "msg": "Method not found"}
 
-@app.route('/permissions/<function>', methods=['POST'])
-def permissions(function):
-    if function.lower() == 'create':
-        try:
-            data = request.get_json()
-            name = data.get('name')
-            description = data.get('description')
-            
-            
-            if not name or not description:
-                return jsonify({"code":400,"error": "Name and description are required"}), 400
-            
-            permissions = {
-                "name": name,
-                "description": description,
-                "created_date": datetime.now()
-            }
-            checkIfExists = mongo_db.get_collection('permissions').find_one({"name":name},{"_id":0,"name":1})
-            if checkIfExists == None:
-                mongo_db.get_collection('permissions').insert_one(permissions)   
-                del permissions['_id']
-                return jsonify({"code":200,"msg": "Permissions created successfully", "permissions": permissions}), 201
-            else:
-                return {"code":300,"msg":f"The name ({name}) has been already taken "}
-        except Exception as e:
-            return jsonify({"code":500,"error": str(e)}), 500
-        
-    # add/update/edit any field like name or description
-    elif function.lower() == 'edit':
-        data = request.get_json()
-        permission_id = data.get('permission_id')
-        if not permission_id :
-            return jsonify({"error": "permission_id is required"}), 400
-        del data['permission_id']
-        
-        result= mongo_db.get_collection('permissions').update_one({"_id":ObjectId(permission_id)},{"$set":data})
-        if result.modified_count == 0:
-            return {"code":202,"msg":"No data found for updates"}
-        else:
-            return {"code":200,"msg":"Data updated for permission "+permission_id}
-        
-    elif function.lower() == 'delete':
-        data = request.get_json()
-        permission_id = data.get('permission_id')
-        if not permission_id:
-            return jsonify({"error": "permission_id is required"}), 400
-        
-        try:
-            result = mongo_db.get_collection('permissions').delete_one({"_id": ObjectId(permission_id)})
-            if result.deleted_count == 0:
-                return {"code":202,"msg":"No data found for deletion"}
-            else:
-                return {"code":200,"msg":"Data deleted for permission " + permission_id}
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    
-    
-    elif function.lower() == 'get':
-        try:
-            data = request.get_json()
-            result= list(mongo_db.get_collection('permissions').find(data))
-            for i in result:
-                i['permission_id'] = str(i['_id'])
-                i['_id'] = str(i['_id'])
-            return {'code':200,'data':(result),'msg':"Successfully fetched permissions data"}
-        except Exception as e:
-            return {"code":500,"msg":"Pass {} in data or search query"}
-    
-    return {"code":404,"msg":"Method not found"}
-        
+   
     
 @app.route('/subscription/<function>', methods=['POST'])
 def subscriptions(function):
@@ -294,18 +236,19 @@ def subscriptions(function):
             if not name or not price:
                 return jsonify({"code": 400, "error": "Name and price are required"}), 400
             
-            subscription = {
-                "name": name,
-                "price": price,
-                "start_date": start_date,
-                "expire_date": expire_date,
-                "created_date": datetime.now()
-            }
+            # subscription = {
+            #     "name": name,
+            #     "price": price,
+            #     "start_date": start_date,
+            #     "expire_date": expire_date,
+            #     "created_date": datetime.now()
+            # }
             check_if_exists = mongo_db.get_collection('subscription').find_one({"name": name})
             if check_if_exists is None:
-                mongo_db.get_collection('subscription').insert_one(subscription)
-                del subscription['_id']
-                return jsonify({"code": 200, "msg": "Subscription created successfully", "subscription": subscription}), 201
+                mongo_db.get_collection('subscription').insert_one(data)
+                if '_id' in list(data):
+                    del data['_id']
+                return jsonify({"code": 200, "msg": "Subscription created successfully", "subscription": data}), 201
             else:
                 return {"code": 300, "msg": f"The subscription ({name}) already exists "}
         except Exception as e:
