@@ -38,5 +38,3 @@ def send_email(to_email, subject, verification_url, name, company_name):
         return {"code": 200, "msg": "Mail sent"}
     except Exception as e:
         return {"code": 500, "msg": str(e)}
-
-# send_email("support@cloudbelly.in", 'Welcome to Rightship', "http://65.0.167.98/support@cloudbelly.in", "Aniket", "Cloudbelly")

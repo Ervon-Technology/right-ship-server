@@ -52,6 +52,7 @@ def routes(payload, function):
             return jsonify({"code": 200, "msg": "Company data updated successfully"}), 200
         else:
             return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+   
     elif function.lower() == 'get':
         try:
             if 'company_id' in payload:

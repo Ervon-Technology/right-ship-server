@@ -162,7 +162,7 @@ def companyRegister():
 
         # Create verification link
         verification_token = os.urandom(24).hex()
-        verification_url = f"http://65.0.167.98/verify_email?token={verification_token}"
+        verification_url = f"https://api.rightships.com/verify_email?token={verification_token}"
 
         # Prepare the registration data
         registration_data = {
@@ -484,6 +484,14 @@ def application_operations(function):
     from companyProfile.base import applicationRoutes
     data = request.get_json()
     return applicationRoutes(data,function)
+
+
+#for employee
+@app.route('/employee/<function>',methods=['POST'])
+def employeeFn(function):
+    from employeeProfile.base import routes
+    data = request.get_json()
+    return routes(data,function)
 
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')
