@@ -3,6 +3,12 @@ from db import mongo_db
 from bson.objectid import ObjectId
 from bson import ObjectId, json_util
 from flask_cors import CORS
+import uuid
+import sys
+import boto3
+from werkzeug.utils import secure_filename
+from botocore.client import Config
+from botocore.exceptions import NoCredentialsError
 import os
 from datetime import datetime
 from datetime import  timezone
@@ -10,10 +16,59 @@ app = Flask(__name__,static_folder='static')
 
 CORS(app, resources={r"/*": {"origins": "*"}})
 app.secret_key =  os.environ.get('SECRET_KEY')
+app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+
+s3_client = boto3.client(
+    's3',
+    region_name='ap-south-1', 
+    config=Config(signature_version='s3v4'),
+    aws_access_key_id='AKIA3FLD5MWG5KX4HX74',
+    aws_secret_access_key='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'
+)
+
+app.config['S3_BUCKET'] = 'rs-file-uploads'
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
 
 @app.route('/')
 def default():
     return "Server running"
+
+#for getting user info
+@app.route('/user/details', methods=['POST'])
+def get_user_details():
+    try:
+        data = request.get_json()
+        mobile_no = data.get('mobile_no')
+        user_type = data.get('user_type')
+
+        if not mobile_no or not user_type:
+            return jsonify({"code": 400, "error": "mobile_no and user_type are required"}), 400
+
+        user_type_to_collection = {
+            "employee": "employee",
+            "company": "company_team",
+            "admin": "team"
+        }
+
+        collection_name = user_type_to_collection.get(user_type.lower())
+
+        if not collection_name:
+            return jsonify({"code": 400, "error": "Invalid user_type"}), 400
+
+        user_data = mongo_db.get_collection(collection_name).find_one({"mobile_no": mobile_no}, {"_id": 0})
+
+        if not user_data:
+            return jsonify({"code": 404, "msg": "User not found"}), 404
+
+        return jsonify({"code": 200, "data": user_data}), 200
+
+    except Exception as e:
+        return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500 
 
 @app.route('/otp/<function>', methods=['POST'])
 def otpFn(function):
@@ -83,11 +138,11 @@ def otpFn(function):
 def adminFn(function):
     if function.lower() == 'register':
         data = request.get_json()
-        phone_number = data.get('mobile_no', '')
-        if not phone_number:
+        mobile_no = data.get('mobile_no', '')
+        if not mobile_no:
             return {"code": 400, "error": "mobile_no key not defined"}
         
-        phone_number = str(phone_number)
+        phone_number = str(mobile_no)
         if len(phone_number) == 10:
             phone_number = f"91{phone_number}"  # for India auto input
         
@@ -99,13 +154,13 @@ def adminFn(function):
         team_member = {
             "role": "super_admin",
             "status": "active",
-            "mobile_no": phone_number,
+            "mobile_no": mobile_no,
             "joined_date": datetime.now(timezone.utc).strftime('%d %b, %Y'),
             "created_date": datetime.now(timezone.utc)
         }
 
         # Check if the user already exists
-        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": phone_number}, {"_id": 0, "mobile_no": 1})
+        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": mobile_no}, {"_id": 0, "mobile_no": 1})
         if check_if_exists is None:
             mongo_db.get_collection('team').insert_one(team_member)
             del team_member['_id']
@@ -115,11 +170,11 @@ def adminFn(function):
 
     if function.lower() == 'login':
         data = request.get_json()
-        phone_number = data.get('mobile_no', '')
-        if not phone_number:
+        mobile_no = data.get('mobile_no', '')
+        if not mobile_no:
             return {"code": 400, "error": "mobile_no key not defined"}
         
-        phone_number = str(phone_number)
+        phone_number = str(mobile_no)
         if len(phone_number) == 10:
             phone_number = f"91{phone_number}"  # for India auto input
         
@@ -131,7 +186,7 @@ def adminFn(function):
         
 
         # Check if the user already exists
-        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": phone_number}, {"_id": 0})
+        check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": mobile_no}, {"_id": 0})
         if check_if_exists is None:
             return jsonify({"code": 500, "msg": "Number not registered"})
         else:
@@ -489,6 +544,32 @@ def employeeFn(function):
     from employeeProfile.base import routes
     data = request.get_json()
     return routes(data,function)
+#for file-uploads
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
 
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file and allowed_file(file.filename):
+        unique_id = str(uuid.uuid4())
+        filename = secure_filename(f"{unique_id}_{file.filename}")
+
+        try:
+            # Upload the file to S3
+            s3_client.upload_fileobj(
+                file,
+                app.config['S3_BUCKET'],
+                filename
+            )
+            s3_url = f'https://{app.config["S3_BUCKET"]}.s3.amazonaws.com/{filename}'
+            return jsonify({'message': 'File successfully uploaded', 'file_url': s3_url}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    else:
+        return jsonify({'error': 'Invalid file type'}), 400 
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')
