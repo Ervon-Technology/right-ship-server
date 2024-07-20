@@ -140,6 +140,106 @@ def adminFn(function):
 
     return {'code': 404, "msg": "Method not defined"}
 
+@app.route('/company/register', methods=['POST'])
+def companyRegister():
+    try:
+        from companyProfile.sendEmail import send_email 
+        data = request.get_json()
+        mobile_no = data.get('mobile_no')
+        email = data.get('email')
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        company_name = data.get('company_name')
+        website_url = data.get('website_url')
+        city = data.get('city')
+        state = data.get('state')
+        country = data.get('country')
+        license_rpsl = data.get('license_rpsl', '')
+        address = data.get('address')
+
+        if not mobile_no or not email or not first_name or not company_name:
+            return jsonify({"error": "mobile_no, first_name, company_name, and email are required"}), 400
+
+        # Create verification link
+        verification_token = os.urandom(24).hex()
+        verification_url = f"http://65.0.167.98/verify_email?token={verification_token}"
+
+        # Prepare the registration data
+        registration_data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "company_name": company_name,
+            "website_url": website_url,
+            "mobile_no": mobile_no,
+            "email": email,
+            "city": city,
+            "state": state,
+            "country": country,
+            "license_rpsl": license_rpsl,
+            "address": address,
+            "verification_token": verification_token,
+            "verified": False,
+            "created_date": datetime.now(timezone.utc)
+        }
+
+        # Insert registration data into temporary collection
+        mongo_db.get_collection('registration_sessions').insert_one(registration_data)
+
+        # Send verification email
+        res = send_email(email, 'Welcome to Rightship', verification_url, first_name, company_name)
+        return res
+
+    except Exception as e:
+        return jsonify({"code": 500, "msg": "Error: " + str(e)})
+
+@app.route('/verify_email', methods=['GET'])
+def verify_email():
+    token = request.args.get('token')
+    if not token:
+        return jsonify({"code": 400, "error": "Token is required"}), 400
+
+    # Find the registration session by token
+    session = mongo_db.get_collection('registration_sessions').find_one({"verification_token": token})
+
+    if not session:
+        return jsonify({"code": 404, "error": "Invalid or expired token"}), 404
+
+    # Create company data
+    company_data = {key: session[key] for key in session if key != '_id' and key != 'verification_token'}
+    company_data['verified'] = True
+
+    # Insert company data into companies collection
+    company_result = mongo_db.get_collection('companies').insert_one(company_data)
+    company_id = str(company_result.inserted_id)
+
+    # Create admin data
+    admin_data = {
+        "mobile_no": company_data['mobile_no'],
+        "role": "admin",
+        "status": "active",
+        "company_id": company_id,
+        "created_date": datetime.now(timezone.utc)
+    }
+
+    admin_result = mongo_db.get_collection('company_team').find_one_and_update(
+        {"mobile_no": company_data['mobile_no']},
+        {"$setOnInsert": admin_data},
+        upsert=True,
+        return_document=True
+    )
+    company_data['company_admin_id'] = str(admin_result['_id'])
+
+    # Update the company document with the admin ID
+    mongo_db.get_collection('companies').update_one(
+        {"_id": company_result.inserted_id},
+        {"$set": {"company_admin_id": company_data['company_admin_id']}}
+    )
+
+    # Remove the session after verification
+    mongo_db.get_collection('registration_sessions').delete_one({"_id": session['_id']})
+
+    return jsonify({"code": 200, "msg": "Email verified and company created successfully"}), 200
+
 #for admin to create team members or to add/update/edit permissions
 @app.route('/team/<function>', methods=['POST'])
 def teamMembers(function):

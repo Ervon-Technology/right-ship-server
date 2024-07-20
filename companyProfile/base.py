@@ -1,9 +1,11 @@
 from db import mongo_db
 from flask import jsonify
 from datetime import datetime
+from datetime import timezone
 from bson.objectid import ObjectId
 from bson import ObjectId, json_util
 
+import os
 
 def routes(payload, function):
     
@@ -30,7 +32,26 @@ def routes(payload, function):
             return jsonify({"code": 200, "msg": "Company data updated successfully"}), 200
         else:
             return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+    if function.lower() == 'update':
+        company_id = payload.get('company_id', '')
 
+        if not company_id:
+            return jsonify({"code": 400, "msg": "company_id is required"}), 400
+
+        # Prepare the data to be updated
+        update_data = {key: value for key, value in payload.items() if key != 'company_id'}
+        update_data["updated_date"] = datetime.now(timezone.utc)
+
+        # Update the existing document
+        result = mongo_db.get_collection('companies').update_one(
+            {"_id": ObjectId(company_id)},
+            {"$set": update_data}
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"code": 200, "msg": "Company data updated successfully"}), 200
+        else:
+            return jsonify({"code": 202, "msg": "No data found for updates"}), 202
     elif function.lower() == 'get':
         try:
             if 'company_id' in payload:
@@ -68,56 +89,36 @@ def routes(payload, function):
         except Exception as e:
             return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
 
-    elif function.lower() == 'register':
-        try:
-            mobile_no = payload.get('mobile_no')
-            otp = payload.get('otp')  # Assume OTP is already verified elsewhere
-            company_data = payload
-            
-            if not mobile_no or not otp:
-                return jsonify({"error": "Mobile number and OTP are required"}), 400
-            
-            # Create or find company admin based on mobile number
-            admin_data = {
-                "mobile_no": mobile_no,
-                "role":"admin",
-                "status":"active",
-                "created_date": datetime.utcnow()
-            }
-            admin_result = mongo_db.get_collection('company_team').find_one_and_update(
-                {"mobile_no": mobile_no},
-                {"$setOnInsert": admin_data},
-                upsert=True,
-                return_document=True
-            )
-            company_data['company_admin_id'] = str(admin_result['_id'])
+    elif function.lower() == 'login':
+       
+        mobile_no = payload.get('mobile_no', '')
+        if not mobile_no:
+            return {"code": 400, "error": "mobile_no key not defined"}
+        
+        phone_number = str(mobile_no)
+        if len(phone_number) == 10:
+            phone_number = f"91{phone_number}"  # for India auto input
+        
+        # Check if the OTP session is verified
+        session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number, "verified": True}, sort=[("created_date", -1)])
+        if not session:
+            return {"code": 400, "error": "OTP not verified"}
+        
+        
 
-            # Check if company with the same company_admin_id exists
-            existing_company = mongo_db.get_collection('companies').find_one({"company_admin_id": company_data['company_admin_id']})
-            if existing_company:
-                # Update existing company data
-                result = mongo_db.get_collection('companies').update_one(
-                    {"company_admin_id": company_data['company_admin_id']},
-                    {"$set": company_data}
-                )
-                if result.modified_count == 0:
-                    return jsonify({"code": 202, "msg": "No data found for updates"}), 202
-                else:
-                    return jsonify({"code": 200, "msg": "Company data updated successfully"}), 200
-            else:
-                # Insert new company data
-                company_data["created_date"] = datetime.utcnow()
-                result = mongo_db.get_collection('companies').insert_one(company_data)
-                company_data['company_id'] = str(result.inserted_id)
-                
-                return jsonify({"code": 200, "msg": "Company and admin data created successfully", "company_id": str(result.inserted_id)}), 200
-        except Exception as e:
-            return jsonify({"code": 500, "msg": "Error: " + str(e)}), 500
+        # Check if the user already exists
+        print({"mobile_no": mobile_no})
+        check_if_exists = mongo_db.get_collection('company_team').find_one({"mobile_no": mobile_no}, {"_id": 0})
+        if check_if_exists is None:
+            return jsonify({"code": 500, "msg": "Number not registered"})
+        else:
+            
+            return {"code": 200, "msg": f" ({phone_number}) login successfull ","data":check_if_exists}
 
-    
     else:
         return jsonify({"error": "Invalid function"}), 400
     return jsonify({"code": 404, "msg": "Function not found"}), 404
+
 
 def teamroutes(payload,function):
     if function == 'add':
