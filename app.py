@@ -4,6 +4,7 @@ from bson.objectid import ObjectId
 from bson import ObjectId, json_util
 from flask_cors import CORS
 import uuid
+from dotenv import load_dotenv
 import sys
 import boto3
 from werkzeug.utils import secure_filename
@@ -21,10 +22,10 @@ app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
 
 s3_client = boto3.client(
     's3',
-    region_name='ap-south-1', 
     config=Config(signature_version='s3v4'),
-    aws_access_key_id='AKIA3FLD5MWG5KX4HX74',
-    aws_secret_access_key='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'
+    aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    region_name = os.getenv('AWS_REGION')
 )
 
 app.config['S3_BUCKET'] = 'rs-file-uploads'
