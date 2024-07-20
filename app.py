@@ -314,8 +314,7 @@ def teamMembers(function):
 
             if not name  or not mobile_no or not email or not role or not status:
                 return jsonify({"code": 400, "error": "Name,mobile_no,email,role and status are required"}), 400
-
-           
+ 
             team_member = {
                 "name": name,
                 "role": role,
@@ -523,7 +522,13 @@ def employersFn(function):
     from companyProfile.base import routes
     data = request.get_json()
     return routes(data,function)
-    
+
+@app.route('/company/support/<function>',methods=['POST'])
+def supportFn(function):
+    from companyProfile.support import routes
+    data = request.get_json()
+    return routes(data,function)
+
 @app.route('/company/team/<function>', methods=['POST'])
 def team_operations(function):
     from companyProfile.base import teamroutes
@@ -549,6 +554,8 @@ def employeeFn(function):
     from employeeProfile.base import routes
     data = request.get_json()
     return routes(data,function)
+
+
 #for file-uploads
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -576,5 +583,8 @@ def upload_file():
             return jsonify({'error': str(e)}), 500
     else:
         return jsonify({'error': 'Invalid file type'}), 400 
+
+
+
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')
