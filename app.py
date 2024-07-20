@@ -20,6 +20,7 @@ app.secret_key =  os.environ.get('SECRET_KEY')
 app.config['UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
 load_dotenv()
+
 s3_client = boto3.client(
     's3',
     config=Config(signature_version='s3v4'),
