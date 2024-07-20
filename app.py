@@ -400,25 +400,22 @@ def attributes(function):
     if function.lower() == 'create':
         try:
             data = request.get_json()
-            ship_categories = data.get('ship_categories', [])
-            certificate_country_wise = data.get('certificate_country_wise', '')
-            
-            attribute = {
-                "ship_categories": ship_categories,
-                "certificate_country_wise": certificate_country_wise,
-                "created_date": datetime.now()
-            }
-            check_if_exists = mongo_db.get_collection('attributes').find_one({"ship_categories": ship_categories,"certificate_country_wise": certificate_country_wise,})
+
+            # Create a query to check for duplicates
+            query = {key: data[key] for key in data.keys()}
+
+            # Check if the document already exists
+            check_if_exists = mongo_db.get_collection('attributes').find_one(query)
             if check_if_exists is None:
-                mongo_db.get_collection('attributes').insert_one(attribute)
-                del attribute['_id']
-                return jsonify({"code": 200, "msg": "Attribute created successfully", "attribute": attribute}), 201
+                data["created_date"] = datetime.now()
+                mongo_db.get_collection('attributes').insert_one(data)
+                del data['_id']
+                return jsonify({"code": 200, "msg": "Attribute created successfully", "attribute": data}), 201
             else:
-                return {"code": 300, "msg": f"The ship_categories ({str(ship_categories)}) and certificate_country_wise {certificate_country_wise} already exists "}
+                return {"code": 300, "msg": "The attribute already exists with the given keys"}
             
         except Exception as e:
             return jsonify({"code": 500, "error": str(e)}), 500
-
     elif function.lower() == 'edit':
         data = request.get_json()
         attribute_id = data.get('attribute_id')

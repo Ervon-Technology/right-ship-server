@@ -73,7 +73,30 @@ def routes(payload,function):
             return jsonify({"code": 400, "msg": "employee_id is required"}), 400
 
         # Prepare the data to be updated
-        update_data = {key: value for key, value in data.items() if key != 'employee_id'}
+        update_data = {key: value for key, value in payload.items() if key != 'employee_id'}
+        update_data["updated_date"] = datetime.now(timezone.utc)
+
+        # Update the existing document
+        result = mongo_db.get_collection('employee').update_one(
+            {"_id": ObjectId(employee_id)},
+            {"$set": update_data}
+        )
+
+        if result.modified_count > 0:
+            return jsonify({"code": 200, "msg": "Employee data updated successfully"}), 200
+        else:
+            return jsonify({"code": 202, "msg": "No data found for updates"}), 202
+   
+     if function.lower() == 'update-resume':
+       
+        employee_id = payload.get('employee_id', '')
+        resume = payload.get('resume', '')
+
+        if not employee_id:
+            return jsonify({"code": 400, "msg": "employee_id is required"}), 400
+
+        # Prepare the data to be updated
+        update_data = {key: value for key, value in payload.items() if key != 'employee_id'}
         update_data["updated_date"] = datetime.now(timezone.utc)
 
         # Update the existing document
