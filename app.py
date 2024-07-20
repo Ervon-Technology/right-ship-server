@@ -306,25 +306,28 @@ def teamMembers(function):
             data = request.get_json()
             name = data.get('name')
             role = data.get('role', 'Employee')
-            status = data.get('status', 'active')
+            mobile_no = data.get('mobile_no')
+            email = data.get('email')
+            status = data.get('status', 'Pending')
             joined_date = data.get('joined_date', datetime.utcnow().strftime('%d %b, %Y'))
-            description = data.get('description')
-            
+            description = data.get('description','')
 
-            if not name or not description:
-                return jsonify({"code": 400, "error": "Name and description are required"}), 400
+            if not name  or not mobile_no or not email or not role or not status:
+                return jsonify({"code": 400, "error": "Name,mobile_no,email,role and status are required"}), 400
 
            
             team_member = {
                 "name": name,
                 "role": role,
+                "mobile_no": mobile_no,
+                "email": email,
                 "status": status,
                 "joined_date": joined_date,
                 "description": description,
                 "created_date": datetime.utcnow()
             }
 
-            check_if_exists = mongo_db.get_collection('team').find_one({"name": name, "description": description}, {"_id": 0, "name": 1})
+            check_if_exists = mongo_db.get_collection('team').find_one({"mobile_no": mobile_no}, {"_id": 0, "name": 1})
             if check_if_exists is None:
                 mongo_db.get_collection('team').insert_one(team_member)
                 del team_member['_id']
