@@ -13,6 +13,8 @@ from botocore.exceptions import NoCredentialsError
 import os
 from datetime import datetime
 from datetime import  timezone
+
+
 app = Flask(__name__,static_folder='static')
 
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -136,14 +138,20 @@ def otpFn(function):
     
     return {'code': 404, "msg": "Method not defined"}
 
+
+
 @app.route('/admin/<function>', methods=['POST'])
 def adminFn(function):
+    
+    from keyfunctions import checkPhoneNumberExists
     if function.lower() == 'register':
         data = request.get_json()
         mobile_no = data.get('mobile_no', '')
         if not mobile_no:
             return {"code": 400, "error": "mobile_no key not defined"}
-        
+        check = checkPhoneNumberExists(mobile_no)
+        if check['code'] != 200:
+            return check
         phone_number = str(mobile_no)
         if len(phone_number) == 10:
             phone_number = f"91{phone_number}"  # for India auto input
@@ -197,9 +205,13 @@ def adminFn(function):
 
     return {'code': 404, "msg": "Method not defined"}
 
+
+
 @app.route('/company/register', methods=['POST'])
 def companyRegister():
     try:
+        
+        from keyfunctions import checkPhoneNumberExists
         from companyProfile.sendEmail import send_email 
         data = request.get_json()
         mobile_no = data.get('mobile_no')
@@ -216,7 +228,9 @@ def companyRegister():
 
         if not mobile_no or not email or not first_name or not company_name:
             return jsonify({"error": "mobile_no, first_name, company_name, and email are required"}), 400
-
+        check = checkPhoneNumberExists(mobile_no)
+        if check['code'] != 200:
+            return check
         # Create verification link
         verification_token = os.urandom(24).hex()
         verification_url = f"https://api.rightships.com/verify_email?token={verification_token}"
@@ -584,7 +598,20 @@ def upload_file():
     else:
         return jsonify({'error': 'Invalid file type'}), 400 
 
-
+@app.route('/send-custom-email', methods=['POST'])
+def sendCustomMailtoClient():
+    from keyfunctions import sendCustomEmail
+    data = request.get_json()
+    email = data.get(email)
+    subject = data.get(subject)
+    body = data.get(body)
+    
+    if not email or not subject or not body:
+        return jsonify({"code": 400, "error": "email,body and subject key is required"}), 400
+    
+    return sendCustomEmail(email,subject,body)
+    
+    
 
 if __name__ == '__main__':
     app.run(port=7800,host='0.0.0.0')

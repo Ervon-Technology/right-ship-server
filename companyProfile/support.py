@@ -87,4 +87,3 @@ def routes(payload, function):
     else:
         return jsonify({"error": "Invalid function"}), 400
     
-    

@@ -9,11 +9,13 @@ import os
 
 def routes(payload,function):
     if function.lower() == 'register':
-        
+        from keyfunctions import checkPhoneNumberExists
         mobile_no = payload.get('mobile_no', '')
         if not mobile_no:
             return {"code": 400, "error": "mobile_no key not defined"}
-        
+        check = checkPhoneNumberExists(mobile_no)
+        if check['code'] != 200:
+            return check
         phone_number = str(mobile_no)
         if len(phone_number) == 10:
             phone_number = f"91{phone_number}"  # for India auto input
