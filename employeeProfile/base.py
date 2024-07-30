@@ -23,7 +23,9 @@ def routes(payload,function):
         # Check if the OTP session is verified
         session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number, "verified": True}, sort=[("created_date", -1)])
         if not session or session['created_date'].replace(tzinfo=timezone.utc) < (datetime.now(timezone.utc) - timedelta(minutes=5)):
-            return {"code": 400, "error": "OTP not verified or expired"}
+            mongo_db.get_collection('otp_sessions').delete_many({"mobile_no": phone_number})
+            print("deletedotp_sessions 27  ")
+            return {"code": 400, "error": "OTP not verified or expired. Please try again"}
         
         employeeData = {
             "status": "active",
@@ -56,7 +58,9 @@ def routes(payload,function):
         session = mongo_db.get_collection('otp_sessions').find_one({"mobile_no": phone_number, "verified": True}, sort=[("created_date", -1)])
        
         if not session or session['created_date'].replace(tzinfo=timezone.utc) < (datetime.now(timezone.utc) - timedelta(minutes=5)):
-            return {"code": 400, "error": "OTP not verified or expired"}
+            mongo_db.get_collection('otp_sessions').delete_many({"mobile_no": phone_number})
+            print("deletedotp_sessions 61  ")
+            return {"code": 400, "error": "OTP not verified or expired. Please try again"}
            
         
         # Check if the user already exists
@@ -65,7 +69,7 @@ def routes(payload,function):
             return jsonify({"code": 500, "msg": "Number not registered"})
         else:
             check_if_exists['_id'] = str(check_if_exists['_id'])
-            return {"code": 200, "msg": f" ({phone_number}) login successful ", "data": check_if_exists}
+            return {"code": 200, "msg": f" ({phone_number}) login successful ", "employee": check_if_exists}
 
     if function.lower() == 'update':
        
@@ -89,7 +93,7 @@ def routes(payload,function):
         else:
             return jsonify({"code": 202, "msg": "No data found for updates"}), 202
    
-     if function.lower() == 'update-resume':
+    if function.lower() == 'update-resume':
        
         employee_id = payload.get('employee_id', '')
         resume = payload.get('resume', '')

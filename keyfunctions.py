@@ -25,7 +25,7 @@ def checkPhoneNumberExists(mobile_no):
                
                 return  ({"code": 409, "msg": f"This mobile number already exists as {user_type}"})
 
-        return ({"code": 404, "msg": "User not found"})
+        return ({"code": 200, "msg": "User not found"})
 
     except Exception as e:
         return ({"code": 500, "msg": "Error: " + str(e)})

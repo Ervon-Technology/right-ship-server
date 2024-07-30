@@ -109,11 +109,12 @@ def routes(payload, function):
 
         # Check if the user already exists
         print({"mobile_no": mobile_no})
-        check_if_exists = mongo_db.get_collection('company_team').find_one({"mobile_no": mobile_no}, {"_id": 0})
+        check_if_exists = mongo_db.get_collection('company_team').find_one({"mobile_no": mobile_no})
         if check_if_exists is None:
             return jsonify({"code": 500, "msg": "Number not registered"})
         else:
-            
+            check_if_exists['_id'] = str(check_if_exists['_id'])
+            check_if_exists['user_id'] = str(check_if_exists['_id'])
             return {"code": 200, "msg": f" ({phone_number}) login successfull ","data":check_if_exists}
 
     else:

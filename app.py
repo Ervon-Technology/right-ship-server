@@ -224,7 +224,8 @@ def companyRegister():
         state = data.get('state')
         country = data.get('country')
         license_rpsl = data.get('license_rpsl', '')
-        address = data.get('address')
+        address = data.get('address'),
+        admin_verify = data.get('admin_verify',False)
 
         if not mobile_no or not email or not first_name or not company_name:
             return jsonify({"error": "mobile_no, first_name, company_name, and email are required"}), 400
@@ -250,6 +251,7 @@ def companyRegister():
             "address": address,
             "verification_token": verification_token,
             "verified": False,
+            "admin_verify":admin_verify,
             "created_date": datetime.now(timezone.utc)
         }
 
